@@ -109,7 +109,8 @@ with tqdm(range(5000)) as bar:
         bar.set_postfix(loss=loss.item())
 
 dnn.eval()
-u = dnn(grid_x, grid_t).detach().cpu().numpy()
+with torch.no_grad():
+    u = dnn(grid_x, grid_t).cpu().numpy()
 
 error = np.linalg.norm(Exact - u, 2) / np.linalg.norm(Exact, 2)
 print('Error u: {:}'.format(error))
