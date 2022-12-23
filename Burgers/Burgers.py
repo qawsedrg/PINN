@@ -63,32 +63,30 @@ class PINN(nn.Module):
 
 
 data = scipy.io.loadmat('burgers_shock.mat')
-
 t = data['t'].flatten()[:, None]
 x = data['x'].flatten()[:, None]
-Exact = np.real(data['usol']).T
+Exact = (np.real(data['usol']).T)
 
 X, T = np.meshgrid(x, t)
+grid = np.hstack((X.flatten()[:, None], T.flatten()[:, None]))
 
-X_star = np.hstack((X.flatten()[:, None], T.flatten()[:, None]))
-u_star = Exact.flatten()[:, None]
+grid_bc1 = np.hstack((x, np.zeros_like(x)))  # (x,0)
+u_bc1 = -np.sin(np.pi * x)
+grid_bc2 = np.hstack((np.ones_like(t), t))  # (1,t)
+u_bc2 = np.zeros_like(t)
+grid_bc3 = np.hstack((-np.ones_like(t), t))  # (-1,t)
+u_bc3 = np.zeros_like(t)
 
-xx1 = np.hstack((X[0:1, :].T, T[0:1, :].T))
-uu1 = Exact[0:1, :].T
-xx2 = np.hstack((X[:, 0:1], T[:, 0:1]))
-uu2 = Exact[:, 0:1]
-xx3 = np.hstack((X[:, -1:], T[:, -1:]))
-uu3 = Exact[:, -1:]
+Exact = Exact.flatten()[:, None]
 
-X_u_train = np.vstack([xx1, xx2, xx3])
-X_f_train = X_star
-u_train = np.vstack([uu1, uu2, uu3])
+grid_bc = np.vstack([grid_bc1, grid_bc2, grid_bc3])
+u_bc = np.vstack([u_bc1, u_bc2, u_bc3])
 
-x_u = torch.tensor(X_u_train[:, 0:1], requires_grad=True).float().to(device)
-t_u = torch.tensor(X_u_train[:, 1:2], requires_grad=True).float().to(device)
-x_f = torch.tensor(X_f_train[:, 0:1], requires_grad=True).float().to(device)
-t_f = torch.tensor(X_f_train[:, 1:2], requires_grad=True).float().to(device)
-u = torch.tensor(u_train).float().to(device)
+grid_x_bc = torch.tensor(grid_bc[:, 0:1], requires_grad=True).float().to(device)
+grid_t_bc = torch.tensor(grid_bc[:, 1:2], requires_grad=True).float().to(device)
+grid_x = torch.tensor(grid[:, 0:1], requires_grad=True).float().to(device)
+grid_t = torch.tensor(grid[:, 1:2], requires_grad=True).float().to(device)
+u_bc = torch.tensor(u_bc).float().to(device)
 
 dnn = DNN().to(device)
 model = PINN(dnn)
@@ -101,33 +99,27 @@ with tqdm(range(5000)) as bar:
     for epoch in bar:
         optimizer.zero_grad()
 
-        f_pred = model(x_f, t_f)
-        loss_u = criterion(u, dnn(x_u, t_u))
-        loss_f = torch.mean(f_pred ** 2)
-        loss = loss_u + loss_f
+        f = model(grid_x, grid_t)
+        loss_bc = criterion(u_bc, dnn(grid_x_bc, grid_t_bc))
+        loss_f = torch.mean(f ** 2)
+        loss = loss_bc + loss_f
         loss.backward()
 
         optimizer.step()
         bar.set_postfix(loss=loss.item())
 
-x = torch.tensor(X_star[:, 0:1], requires_grad=True).float().to(device)
-t = torch.tensor(X_star[:, 1:2], requires_grad=True).float().to(device)
 dnn.eval()
-u_pred = dnn(x, t)
-u_pred = u_pred.detach().cpu().numpy()
-x = x.detach().cpu().numpy()
-t = t.detach().cpu().numpy()
+u = dnn(grid_x, grid_t).detach().cpu().numpy()
 
-error_u = np.linalg.norm(u_star - u_pred, 2) / np.linalg.norm(u_star, 2)
-print('Error u: %e' % (error_u))
+error = np.linalg.norm(Exact - u, 2) / np.linalg.norm(Exact, 2)
+print('Error u: {:}'.format(error))
 
-U_pred = griddata(X_star, u_pred.flatten(), (X, T), method='cubic')
-Error = np.abs(Exact - U_pred)
+u = griddata(grid, u.flatten(), (X, T), method='cubic')
 
 fig = plt.figure(figsize=(9, 5))
 ax = fig.add_subplot(111)
 
-h = ax.imshow(U_pred.T, interpolation='nearest', cmap='rainbow',
+h = ax.imshow(u.T, interpolation='nearest', cmap='rainbow',
               extent=[t.min(), t.max(), x.min(), x.max()],
               origin='lower', aspect='auto')
 divider = make_axes_locatable(ax)
@@ -136,10 +128,10 @@ cbar = fig.colorbar(h, cax=cax)
 cbar.ax.tick_params(labelsize=15)
 
 ax.plot(
-    X_u_train[:, 1],
-    X_u_train[:, 0],
-    'kx', label='Data (%d points)' % (u_train.shape[0]),
-    markersize=4,  # marker size doubled
+    grid_bc[:, 1],
+    grid_bc[:, 0],
+    'kx', label='Data (%d points)' % (u_bc.shape[0]),
+    markersize=4,
     clip_on=False,
     alpha=1.0
 )
@@ -158,7 +150,7 @@ ax.legend(
     frameon=False,
     prop={'size': 15}
 )
-ax.set_title('$u(t,x)$', fontsize=20)  # font size doubled
+ax.set_title('$u(t,x)$', fontsize=20)
 ax.tick_params(labelsize=15)
 
 plt.show()
