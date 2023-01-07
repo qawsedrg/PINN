@@ -34,6 +34,7 @@ class DNN(nn.Module):
         out = self.output_layer(out)
         return out
 
+
 class PINN(nn.Module):
     def __init__(self, dnn):
         super().__init__()
