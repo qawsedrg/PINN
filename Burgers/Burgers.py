@@ -94,9 +94,12 @@ optimizer = torch.optim.Adam(dnn.parameters(), lr=1e-3)
 
 criterion = torch.nn.MSELoss()
 
-dnn.train()
+plt.ion()
+fig = plt.figure(figsize=(9, 5))
+
 with tqdm(range(5000)) as bar:
     for epoch in bar:
+        dnn.train()
         optimizer.zero_grad()
 
         f = model(grid_x, grid_t)
@@ -108,50 +111,54 @@ with tqdm(range(5000)) as bar:
         optimizer.step()
         bar.set_postfix(loss=loss.item())
 
-dnn.eval()
-with torch.no_grad():
-    u = dnn(grid_x, grid_t).cpu().numpy()
+        # eval and draw
 
-error = np.linalg.norm(Exact - u, 2) / np.linalg.norm(Exact, 2)
-print('Error u: {:}'.format(error))
+        if epoch % 10 == 0:
+            dnn.eval()
+            with torch.no_grad():
+                u = dnn(grid_x, grid_t).cpu().numpy()
 
-u = griddata(grid, u.flatten(), (X, T), method='cubic')
+            error = np.linalg.norm(Exact - u, 2) / np.linalg.norm(Exact, 2)
+            print('Error u: {:}'.format(error))
 
-fig = plt.figure(figsize=(9, 5))
-ax = fig.add_subplot(111)
+            u = griddata(grid, u.flatten(), (X, T), method='cubic')
 
-h = ax.imshow(u.T, interpolation='nearest', cmap='rainbow',
-              extent=[t.min(), t.max(), x.min(), x.max()],
-              origin='lower', aspect='auto')
-divider = make_axes_locatable(ax)
-cax = divider.append_axes("right", size="5%", pad=0.10)
-cbar = fig.colorbar(h, cax=cax)
-cbar.ax.tick_params(labelsize=15)
+            ax = fig.add_subplot(111)
 
-ax.plot(
-    grid_bc[:, 1],
-    grid_bc[:, 0],
-    'kx', label='Data (%d points)' % (u_bc.shape[0]),
-    markersize=4,
-    clip_on=False,
-    alpha=1.0
-)
+            h = ax.imshow(u.T, interpolation='nearest', cmap='rainbow',
+                          extent=[t.min(), t.max(), x.min(), x.max()],
+                          origin='lower', aspect='auto')
+            divider = make_axes_locatable(ax)
+            cax = divider.append_axes("right", size="5%", pad=0.10)
+            cbar = fig.colorbar(h, cax=cax)
+            cbar.ax.tick_params(labelsize=15)
 
-line = np.linspace(x.min(), x.max(), 2)[:, None]
-ax.plot(t[25] * np.ones((2, 1)), line, 'w-', linewidth=1)
-ax.plot(t[50] * np.ones((2, 1)), line, 'w-', linewidth=1)
-ax.plot(t[75] * np.ones((2, 1)), line, 'w-', linewidth=1)
+            ax.plot(
+                grid_bc[:, 1],
+                grid_bc[:, 0],
+                'kx', label='Data (%d points)' % (u_bc.shape[0]),
+                markersize=4,
+                clip_on=False,
+                alpha=1.0
+            )
 
-ax.set_xlabel('$t$', size=20)
-ax.set_ylabel('$x$', size=20)
-ax.legend(
-    loc='upper center',
-    bbox_to_anchor=(0.9, -0.05),
-    ncol=5,
-    frameon=False,
-    prop={'size': 15}
-)
-ax.set_title('$u(t,x)$', fontsize=20)
-ax.tick_params(labelsize=15)
+            line = np.linspace(x.min(), x.max(), 2)[:, None]
+            ax.plot(t[25] * np.ones((2, 1)), line, 'w-', linewidth=1)
+            ax.plot(t[50] * np.ones((2, 1)), line, 'w-', linewidth=1)
+            ax.plot(t[75] * np.ones((2, 1)), line, 'w-', linewidth=1)
 
-plt.show()
+            ax.set_xlabel('$t$', size=20)
+            ax.set_ylabel('$x$', size=20)
+            ax.legend(
+                loc='upper center',
+                bbox_to_anchor=(0.9, -0.05),
+                ncol=5,
+                frameon=False,
+                prop={'size': 15}
+            )
+            ax.set_title('$u(t,x)$', fontsize=20)
+            ax.tick_params(labelsize=15)
+            plt.pause(0.1)
+            fig.clf()
+
+plt.ioff()
