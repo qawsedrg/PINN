@@ -1,7 +1,7 @@
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.io
+import scipy
 import torch
 import torch.nn as nn
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -106,6 +106,7 @@ fig2 = plt.figure(figsize=(7, 4))
 with tqdm(range(5000)) as bar:
     for epoch in bar:
         dnn.train()
+        model.train()
         optimizer.zero_grad()
 
         f = model(grid_x, grid_t)
@@ -121,6 +122,7 @@ with tqdm(range(5000)) as bar:
 
         if epoch % 10 == 0:
             dnn.eval()
+            model.eval()
             lambdas = [parameter.detach().cpu().numpy() for parameter in model.param]
             error_lambda_1 = np.abs(lambdas[0] - 1.0) * 100
             error_lambda_2 = np.abs(np.exp(lambdas[1]) - (0.01 / np.pi)) / (0.01 / np.pi) * 100
@@ -225,7 +227,7 @@ with tqdm(range(5000)) as bar:
                 item.set_fontsize(15)
 
             plt.pause(0.1)
-            fig2.clf()
             fig1.clf()
+            fig2.clf()
 
 plt.ioff()

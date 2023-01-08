@@ -1,7 +1,7 @@
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.io
+import scipy
 import torch
 import torch.nn as nn
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -92,17 +92,18 @@ u_bc = torch.tensor(u_bc).float().to(device)
 
 dnn = DNN().to(device)
 model = PINN(dnn)
-optimizer = torch.optim.Adam(dnn.parameters(), lr=1e-3)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
 criterion = torch.nn.MSELoss()
 
 plt.ion()
-fig1 = plt.figure(figsize=(9, 5))
-fig2 = plt.figure(figsize=(14, 10))
+fig1 = plt.figure(figsize=(7, 4))
+fig2 = plt.figure(figsize=(7, 4))
 
 with tqdm(range(5000)) as bar:
     for epoch in bar:
         dnn.train()
+        model.train()
         optimizer.zero_grad()
 
         f = model(grid_x, grid_t)
@@ -118,6 +119,7 @@ with tqdm(range(5000)) as bar:
 
         if epoch % 10 == 0:
             dnn.eval()
+            model.eval()
             with torch.no_grad():
                 u = dnn(grid_x, grid_t).cpu().numpy()
 
@@ -217,7 +219,7 @@ with tqdm(range(5000)) as bar:
                 item.set_fontsize(15)
 
             plt.pause(0.1)
-            fig2.clf()
             fig1.clf()
+            fig2.clf()
 
 plt.ioff()
