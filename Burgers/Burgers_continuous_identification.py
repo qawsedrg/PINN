@@ -126,8 +126,7 @@ with tqdm(range(5000)) as bar:
             lambdas = [parameter.detach().cpu().numpy() for parameter in model.param]
             error_lambda_1 = np.abs(lambdas[0] - 1.0) * 100
             error_lambda_2 = np.abs(np.exp(lambdas[1]) - (0.01 / np.pi)) / (0.01 / np.pi) * 100
-            print('Error l1: %.5f%%' % (error_lambda_1))
-            print('Error l2: %.5f%%' % (error_lambda_2))
+            print('Error l1: %.5f%%' % (error_lambda_1), 'Error l2: %.5f%%' % (error_lambda_2))
             with torch.no_grad():
                 u = dnn(grid_x, grid_t).cpu().numpy()
 
