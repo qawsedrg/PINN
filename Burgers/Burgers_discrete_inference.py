@@ -21,6 +21,7 @@ class DNN(nn.Module):
         self.linear.append(nn.Linear(50, 50))
         self.linear.append(nn.Linear(50, 50))
         self.linear.append(nn.Linear(50, 50))
+        # q intervals = q+1 time steps
         self.output_layer = nn.Linear(50, q + 1)
 
     def forward(self, x):
@@ -46,9 +47,11 @@ class PINN(nn.Module):
             retain_graph=True,
             create_graph=True
         )[0]
+        # torch.sum(this u_x,dim=-1)=original u_x
+        # to separate the grad
         u_x = torch.autograd.grad(
             u_x, dummy,
-            grad_outputs=torch.ones([250, 1]).to(device),
+            grad_outputs=torch.ones([u_prime.shape[0], 1]).to(device),
             retain_graph=True,
             create_graph=True
         )[0]
@@ -60,17 +63,17 @@ class PINN(nn.Module):
         )[0]
         u_xx = torch.autograd.grad(
             u_xx, dummy,
-            grad_outputs=torch.ones([250, 1]).to(device),
+            grad_outputs=torch.ones([u_prime.shape[0], 1]).to(device),
             retain_graph=True,
             create_graph=True
         )[0]
         f = - u_prime * u_x + (0.01 / np.pi) * u_xx
+        # -dt... to return from the ending point to the starting point
         return u - dt * torch.matmul(f, IRK_weights.T)
 
 
 q = 500
 q = max(q, 1)
-layers = [1, 50, 50, 50, q + 1]
 lb = np.array([-1.0])
 ub = np.array([1.0])
 
@@ -89,11 +92,13 @@ dt = t[idx_t1] - t[idx_t0]
 # Initial data
 noise_u0 = 0.0
 idx_x = np.random.choice(Exact.shape[1], N, replace=False)
+# choose N samples
 x0 = x[idx_x, :]
 u0 = Exact[idx_t0:idx_t0 + 1, idx_x].T
+# nosiy data
 u0 = u0 + noise_u0 * np.std(u0) * np.random.randn(u0.shape[0], u0.shape[1])
 
-# Boudanry data
+# Boundary data
 x1 = np.vstack((lb, ub))
 
 # Test data
@@ -123,6 +128,9 @@ with tqdm(range(10000)) as bar:
         model.train()
         optimizer.zero_grad()
 
+        # model learns the pattern of u at t=0.9
+        # loss1 : bord
+        # loss2 : value of u at t = 0.1 by Runge-Kutta
         loss1 = torch.mean(dnn(x1_) ** 2)
         loss2 = criterion(u0_, model(x0_, dt_, IRK_weights_))
         loss = loss1 + loss2
