@@ -79,7 +79,7 @@ ub = np.array([1.0])
 
 N = 250
 
-data = scipy.io.loadmat('./burgers_shock.mat')
+data = scipy.io.loadmat('../Data/burgers_shock.mat')
 
 t = data['t'].flatten()[:, None]  # T x 1
 x = data['x'].flatten()[:, None]  # N x 1

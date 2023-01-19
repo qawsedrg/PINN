@@ -107,7 +107,7 @@ skip = 80
 N0 = 199
 N1 = 201
 
-data = scipy.io.loadmat('./burgers_shock.mat')
+data = scipy.io.loadmat('../Data/burgers_shock.mat')
 
 t_star = data['t'].flatten()[:, None]
 x_star = data['x'].flatten()[:, None]

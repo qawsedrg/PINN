@@ -64,7 +64,7 @@ class PINN(nn.Module):
         return f
 
 
-data = scipy.io.loadmat('burgers_shock.mat')
+data = scipy.io.loadmat('../Data/burgers_shock.mat')
 t = data['t'].flatten()[:, None]
 x = data['x'].flatten()[:, None]
 Exact_ori = np.real(data['usol']).T
