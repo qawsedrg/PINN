@@ -67,7 +67,7 @@ class PINN(nn.Module):
             retain_graph=True,
             create_graph=True
         )[0]
-        f = - u_prime * u_x + (0.01 / np.pi) * u_xx
+        f = 5 * u_prime - 5 * u_prime ** 3 + 0.0001 * u_xx
         # -dt... to return from the ending point to the starting point
         return u - dt * torch.matmul(f, IRK_weights.T)
 
@@ -79,14 +79,14 @@ ub = np.array([1.0])
 
 N = 250
 
-data = scipy.io.loadmat('../Data/burgers_shock.mat')
+data = scipy.io.loadmat('../Data/AC.mat')
 
-t = data['t'].flatten()[:, None]  # T x 1
+t = data['tt'].flatten()[:, None]  # T x 1
 x = data['x'].flatten()[:, None]  # N x 1
-Exact = np.real(data['usol']).T  # T x N
+Exact = np.real(data['uu']).T  # T x N
 
-idx_t0 = 10
-idx_t1 = 90
+idx_t0 = 20
+idx_t1 = 180
 dt = t[idx_t1] - t[idx_t0]
 
 # Initial data
@@ -107,7 +107,7 @@ x_star = x
 tmp = np.float32(np.loadtxt('../IRK_weights/Butcher_IRK%d.txt' % (q), ndmin=2))
 IRK_weights = np.reshape(tmp[0:q ** 2 + q], (q + 1, q))
 
-x1_ = torch.tensor(x1).float().to(device)
+x1_ = torch.tensor(x1, requires_grad=True).float().to(device)
 x0_ = torch.tensor(x0, requires_grad=True).float().to(device)
 u0_ = torch.tensor(u0, requires_grad=True).float().to(device)
 x_star_ = torch.tensor(x_star).float().to(device)
@@ -131,13 +131,22 @@ with tqdm(range(10000)) as bar:
         # model learns the pattern of u at t=0.9
         # loss1 : bord
         # loss2 : value of u at t = 0.1 by Runge-Kutta
-        loss1 = torch.mean(dnn(x1_))
+        u_bc = dnn(x1_)
+        u_bc_prime = u_bc[:, :-1]
+        u_bc_x = torch.autograd.grad(
+            u_bc_prime, x1_,
+            grad_outputs=torch.ones_like(u_bc_prime).to(device),
+            retain_graph=True,
+            create_graph=True
+        )[0]
+        loss1 = criterion(u_bc[0, :], u_bc[1, :])
+        loss1 += criterion(u_bc_x[0, :], u_bc_x[1, :])
         loss2 = criterion(u0_, model(x0_, dt_, IRK_weights_))
         loss = loss1 + loss2
         loss.backward()
 
         optimizer.step()
-        bar.set_postfix(loss=loss.item())
+        bar.set_postfix(loss1=loss1.item(), loss2=loss2.item())
 
         if epoch % 500 == 0:
             dnn.eval()
