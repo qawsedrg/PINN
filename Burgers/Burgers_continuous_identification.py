@@ -132,9 +132,13 @@ with tqdm(range(5000)) as bar:
 
             error = np.linalg.norm(Exact - u, 2) / np.linalg.norm(Exact, 2)
             print('Error u: {:}'.format(error))
-
+            
             u = griddata(grid, u.flatten(), (X, T), method='cubic')
 
+            #####################################
+            ############     ax1     ############
+            #####################################
+            
             ax1 = fig1.add_subplot(111)
 
             h = ax1.imshow(u.T, interpolation='nearest', cmap='rainbow',
@@ -171,33 +175,33 @@ with tqdm(range(5000)) as bar:
             ax1.set_title('$u(t,x)$', fontsize=20)
             ax1.tick_params(labelsize=15)
 
-            ax2 = fig2.add_subplot(111)
+            #####################################
+            ############     ax2     ############
+            #####################################
 
             gs1 = gridspec.GridSpec(1, 3)
             gs1.update(top=1 - 1.0 / 3.0 - 0.1, bottom=1.0 - 2.0 / 3.0, left=0.1, right=0.9, wspace=0.5)
 
-            ax2 = plt.subplot(gs1[0, 0])
+            ax2 = fig2.add_subplot(gs1[0, 0])
             ax2.plot(x, Exact_ori[25, :], 'b-', linewidth=2, label='Exact')
             ax2.plot(x, u[25, :], 'r--', linewidth=2, label='Prediction')
             ax2.set_xlabel('$x$')
             ax2.set_ylabel('$u(t,x)$')
             ax2.set_title('$t = 0.25$', fontsize=15)
-            ax2.axis('square')
-            ax2.set_xlim([-1.1, 1.1])
-            ax2.set_ylim([-1.1, 1.1])
+            ax2.set_xlim([x.min(), x.max()])
+            ax2.set_ylim([Exact_ori.min(), Exact_ori.max()])
 
             for item in ([ax2.title, ax2.xaxis.label, ax2.yaxis.label] +
                          ax2.get_xticklabels() + ax2.get_yticklabels()):
                 item.set_fontsize(15)
 
-            ax2 = plt.subplot(gs1[0, 1])
+            ax2 = fig2.add_subplot(gs1[0, 1])
             ax2.plot(x, Exact_ori[50, :], 'b-', linewidth=2, label='Exact')
             ax2.plot(x, u[50, :], 'r--', linewidth=2, label='Prediction')
             ax2.set_xlabel('$x$')
             ax2.set_ylabel('$u(t,x)$')
-            ax2.axis('square')
-            ax2.set_xlim([-1.1, 1.1])
-            ax2.set_ylim([-1.1, 1.1])
+            ax2.set_xlim([x.min(), x.max()])
+            ax2.set_ylim([Exact_ori.min(), Exact_ori.max()])
             ax2.set_title('$t = 0.50$', fontsize=15)
             ax2.legend(
                 loc='upper center',
@@ -211,14 +215,13 @@ with tqdm(range(5000)) as bar:
                          ax2.get_xticklabels() + ax2.get_yticklabels()):
                 item.set_fontsize(15)
 
-            ax2 = plt.subplot(gs1[0, 2])
+            ax2 = fig2.add_subplot(gs1[0, 2])
             ax2.plot(x, Exact_ori[75, :], 'b-', linewidth=2, label='Exact')
             ax2.plot(x, u[75, :], 'r--', linewidth=2, label='Prediction')
             ax2.set_xlabel('$x$')
             ax2.set_ylabel('$u(t,x)$')
-            ax2.axis('square')
-            ax2.set_xlim([-1.1, 1.1])
-            ax2.set_ylim([-1.1, 1.1])
+            ax2.set_xlim([x.min(), x.max()])
+            ax2.set_ylim([Exact_ori.min(), Exact_ori.max()])
             ax2.set_title('$t = 0.75$', fontsize=15)
 
             for item in ([ax2.title, ax2.xaxis.label, ax2.yaxis.label] +

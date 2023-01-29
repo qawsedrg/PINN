@@ -131,7 +131,7 @@ plt.ion()
 fig1 = plt.figure(figsize=(7, 4))
 fig2 = plt.figure(figsize=(7, 4))
 
-with tqdm(range(5000)) as bar:
+with tqdm(range(10000)) as bar:
     for epoch in bar:
         dnn.train()
         model.train()
@@ -177,7 +177,7 @@ with tqdm(range(5000)) as bar:
         optimizer.step()
         bar.set_postfix(loss_bc=loss_bc.item(), loss_f=loss_f.item())
 
-        if epoch % 1000 == 0:
+        if epoch % 100 == 0:
             dnn.eval()
             with torch.no_grad():
                 u_r, u_i = dnn(grid_x, grid_t)
@@ -194,6 +194,10 @@ with tqdm(range(5000)) as bar:
 
             u = griddata(grid, u.flatten(), (X, T), method='cubic')
 
+            #####################################
+            ############     ax1     ############
+            #####################################
+            
             ax1 = fig1.add_subplot(111)
 
             h = ax1.imshow(u.T, interpolation='nearest', cmap='rainbow',
@@ -230,32 +234,33 @@ with tqdm(range(5000)) as bar:
             ax1.set_title('$u(t,x)$', fontsize=20)
             ax1.tick_params(labelsize=15)
 
-            ax2 = fig2.add_subplot(111)
+            #####################################
+            ############     ax2     ############
+            #####################################
+            
             gs1 = gridspec.GridSpec(1, 3)
             gs1.update(top=1 - 1.0 / 3.0 - 0.1, bottom=1.0 - 2.0 / 3.0, left=0.1, right=0.9, wspace=0.5)
 
-            ax2 = plt.subplot(gs1[0, 0])
+            ax2 = fig2.add_subplot(gs1[0, 0])
             ax2.plot(x, Exact_ori[int(0.60 // interval_t), :], 'b-', linewidth=2, label='Exact')
             ax2.plot(x, u[int(0.60 // interval_t), :], 'r--', linewidth=2, label='Prediction')
             ax2.set_xlabel('$x$')
             ax2.set_ylabel('$u(t,x)$')
             ax2.set_title('$t = 0.60$', fontsize=15)
-            ax2.axis('square')
-            ax2.set_xlim([-5, 5])
-            ax2.set_ylim([0, 5])
+            ax2.set_xlim([x.min(), x.max()])
+            ax2.set_ylim([Exact_ori.min(), Exact_ori.max()])
 
             for item in ([ax2.title, ax2.xaxis.label, ax2.yaxis.label] +
                          ax2.get_xticklabels() + ax2.get_yticklabels()):
                 item.set_fontsize(15)
 
-            ax2 = plt.subplot(gs1[0, 1])
+            ax2 = fig2.add_subplot(gs1[0, 1])
             ax2.plot(x, Exact_ori[int(0.80 // interval_t), :], 'b-', linewidth=2, label='Exact')
             ax2.plot(x, u[int(0.80 // interval_t), :], 'r--', linewidth=2, label='Prediction')
             ax2.set_xlabel('$x$')
             ax2.set_ylabel('$u(t,x)$')
-            ax2.axis('square')
-            ax2.set_xlim([-5, 5])
-            ax2.set_ylim([0, 5])
+            ax2.set_xlim([x.min(), x.max()])
+            ax2.set_ylim([Exact_ori.min(), Exact_ori.max()])
             ax2.set_title('$t = 0.80$', fontsize=15)
             ax2.legend(
                 loc='upper center',
@@ -269,14 +274,13 @@ with tqdm(range(5000)) as bar:
                          ax2.get_xticklabels() + ax2.get_yticklabels()):
                 item.set_fontsize(15)
 
-            ax2 = plt.subplot(gs1[0, 2])
+            ax2 = fig2.add_subplot(gs1[0, 2])
             ax2.plot(x, Exact_ori[int(1.00 // interval_t), :], 'b-', linewidth=2, label='Exact')
             ax2.plot(x, u[int(1.00 // interval_t), :], 'r--', linewidth=2, label='Prediction')
             ax2.set_xlabel('$x$')
             ax2.set_ylabel('$u(t,x)$')
-            ax2.axis('square')
-            ax2.set_xlim([-5, 5])
-            ax2.set_ylim([0, 5])
+            ax2.set_xlim([x.min(), x.max()])
+            ax2.set_ylim([Exact_ori.min(), Exact_ori.max()])
             ax2.set_title('$t = 1.00$', fontsize=15)
 
             for item in ([ax2.title, ax2.xaxis.label, ax2.yaxis.label] +

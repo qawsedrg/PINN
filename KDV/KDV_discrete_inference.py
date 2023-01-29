@@ -91,7 +91,7 @@ ub = np.array([1.0])
 
 N = 250
 
-data = scipy.io.loadmat('../Data/Kdv.mat')
+data = scipy.io.loadmat('../Data/KdV.mat')
 
 t = data['tt'].flatten()[:, None]  # T x 1
 x = data['x'].flatten()[:, None]  # N x 1
@@ -166,7 +166,7 @@ with tqdm(range(10000)) as bar:
             ####### Row 0: h(t,x) ##################
             gs0 = gridspec.GridSpec(1, 2)
             gs0.update(top=1 - 0.06, bottom=1 - 1 / 2 + 0.1, left=0.15, right=0.85, wspace=0)
-            ax = plt.subplot(gs0[:, :])
+            ax = fig.add_subplot(gs0[:, :])
 
             h = ax.imshow(Exact.T, interpolation='nearest', cmap='rainbow',
                           extent=[t.min(), t.max(), x_star.min(), x_star.max()],
@@ -188,7 +188,7 @@ with tqdm(range(10000)) as bar:
             gs1 = gridspec.GridSpec(1, 2)
             gs1.update(top=1 - 1 / 2 - 0.05, bottom=0.15, left=0.15, right=0.85, wspace=0.5)
 
-            ax = plt.subplot(gs1[0, 0])
+            ax = fig.add_subplot(gs1[0, 0])
             ax.plot(x, Exact[idx_t0, :], 'b-', linewidth=2)
             ax.plot(x0, u0, 'rx', linewidth=2, label='Data')
             ax.set_xlabel('$x$')
@@ -197,7 +197,7 @@ with tqdm(range(10000)) as bar:
             ax.set_xlim([lb - 0.1, ub + 0.1])
             ax.legend(loc='upper center', bbox_to_anchor=(0.8, -0.3), ncol=2, frameon=False)
 
-            ax = plt.subplot(gs1[0, 1])
+            ax = fig.add_subplot(gs1[0, 1])
             ax.plot(x, Exact[idx_t1, :], 'b-', linewidth=2, label='Exact')
             ax.plot(x_star, U1_pred[:, -1], 'r--', linewidth=2, label='Prediction')
             ax.set_xlabel('$x$')
