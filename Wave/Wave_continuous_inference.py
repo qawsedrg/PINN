@@ -7,6 +7,7 @@ import torch.nn as nn
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.interpolate import griddata
 from tqdm import tqdm
+from torch.utils.data import DataLoader, TensorDataset
 
 np.random.seed(1234)
 
@@ -17,12 +18,12 @@ class DNN(nn.Module):
     def __init__(self):
         super().__init__()
         self.linear = nn.ModuleList([])
-        self.linear.append(nn.Linear(2, 50))
-        self.linear.append(nn.Linear(50, 50))
-        self.linear.append(nn.Linear(50, 50))
-        self.linear.append(nn.Linear(50, 50))
-        self.linear.append(nn.Linear(50, 50))
-        self.output_layer = nn.Linear(50, 1)
+        self.linear.append(nn.Linear(2, 100))
+        self.linear.append(nn.Linear(100, 100))
+        self.linear.append(nn.Linear(100, 100))
+        self.linear.append(nn.Linear(100, 100))
+        self.linear.append(nn.Linear(100, 100))
+        self.output_layer = nn.Linear(100, 1)
 
     def forward(self, x, t):
         out = torch.cat([x, t], dim=1)
@@ -67,15 +68,19 @@ class PINN(nn.Module):
         f = u_tt - self.c**2 * u_xx
         return f
 
+T=1
 L=1
-c=1
-n_max=1
+c=0.5
+n_max=5
 n=np.arange(1, n_max + 1)
 lam=2*L/n_max
 omiga=n_max*np.pi*c/L
 k=omiga/c
-phi_n=np.random.randn(n_max,1)
-C_n=np.random.randn(n_max,1)
+#phi_n=np.random.randn(n_max,1)
+#C_n=np.random.randn(n_max,1)
+phi_n=np.zeros((n_max,1))
+C_n=np.zeros((n_max,1))
+C_n[-1,:]=1
 def alpha(x):
     alpha_n = C_n * np.cos(phi_n)
     return np.sum(alpha_n*np.sin(np.einsum("n,xj->nx",n,x)*np.pi/L),axis=0)[:,None]
@@ -83,8 +88,9 @@ def beta(x):
     beta_n = n[:,None] * np.pi * c / L * C_n * np.sin(phi_n)
     return np.sum(beta_n*np.sin(np.einsum("n,xj->nx",n,x)*np.pi/L),axis=0)[:,None]
 
-t=np.linspace(0,2,200)[:,None]
-x=np.linspace(0,L,100)[:,None]
+# 20 point per period
+t=np.linspace(0,T,int(n_max*T/(2*L/c)*20))[:,None]
+x=np.linspace(0,L,n_max*20)[:,None]
 Exact_ori = np.sum(C_n[:,:,None]*np.einsum("nt,nx->nxt",np.cos(np.einsum("n,tj->nt",n,t)*np.pi*c/L-phi_n),np.sin(np.einsum("n,xj->nx",n,x)*np.pi/L)),axis=0).T
 
 X, T = np.meshgrid(x, t)
@@ -124,13 +130,23 @@ fig2 = plt.figure("t",figsize=(7, 4))
 fig3 = plt.figure("Error", figsize=(7, 4))
 fig4 = plt.figure("truth", figsize=(7, 4))
 
-with tqdm(range(100000)) as bar:
+mask_x=torch.logical_or(grid_x>=0.5,grid_x<=0.5)
+mask_t=torch.logical_or(grid_t>=1.1,grid_t<=0.3)
+mask_train=torch.logical_and(mask_x,mask_t)
+grid_x_train=torch.tensor(grid_x[mask_train,None], requires_grad=True).float().to(device)
+grid_t_train=torch.tensor(grid_t[mask_train,None], requires_grad=True).float().to(device)
+
+# dataloader creat great IO cost cannot be used
+
+with tqdm(range(10000000)) as bar:
     for epoch in bar:
         dnn.train()
         model.train()
         optimizer.zero_grad()
 
-        f = model(grid_x, grid_t)
+        mask=torch.randint(0,5,(len(grid_x_train),))==0
+
+        f = model(grid_x_train[mask], grid_t_train[mask])
         loss_bc = criterion(u_bc, dnn(grid_x_bc, grid_t_bc))
         u = dnn(grid_x_bc1, grid_t_bc1)
         u_t=torch.autograd.grad(
@@ -161,6 +177,9 @@ with tqdm(range(100000)) as bar:
             error = griddata(grid, ((Exact - u) ** 2).flatten(), (X, T), method='cubic') / np.linalg.norm(Exact, 2) ** 2
             u = griddata(grid, u.flatten(), (X, T), method='cubic')
 
+            t1=int(0.25*len(t))
+            t2=int(0.5*len(t))
+            t3=int(0.75*len(t))
             #####################################
             ############     ax1     ############
             #####################################
@@ -185,9 +204,9 @@ with tqdm(range(100000)) as bar:
             )
 
             line = np.linspace(x.min(), x.max(), 2)[:, None]
-            ax1.plot(t[25] * np.ones((2, 1)), line, 'w-', linewidth=1)
-            ax1.plot(t[50] * np.ones((2, 1)), line, 'w-', linewidth=1)
-            ax1.plot(t[75] * np.ones((2, 1)), line, 'w-', linewidth=1)
+            ax1.plot(t[t1] * np.ones((2, 1)), line, 'w-', linewidth=1)
+            ax1.plot(t[t2] * np.ones((2, 1)), line, 'w-', linewidth=1)
+            ax1.plot(t[t3] * np.ones((2, 1)), line, 'w-', linewidth=1)
 
             ax1.set_xlabel('$t$', size=20)
             ax1.set_ylabel('$x$', size=20)
@@ -211,11 +230,11 @@ with tqdm(range(100000)) as bar:
             gs1.update(top=1 - 1.0 / 3.0 - 0.1, bottom=1.0 - 2.0 / 3.0, left=0.1, right=0.9, wspace=0.5)
 
             ax2 = fig2.add_subplot(gs1[0, 0])
-            ax2.plot(x, Exact_ori[25, :], 'b-', linewidth=2, label='Exact')
-            ax2.plot(x, u[25, :], 'r--', linewidth=2, label='Prediction')
+            ax2.plot(x, Exact_ori[t1, :], 'b-', linewidth=2, label='Exact')
+            ax2.plot(x, u[t1, :], 'r--', linewidth=2, label='Prediction')
             ax2.set_xlabel('$x$')
             ax2.set_ylabel('$u(t,x)$')
-            ax2.set_title('$t = 0.25$', fontsize=15)
+            ax2.set_title('$t = 0.t1$', fontsize=15)
             ax2.set_xlim([x.min(), x.max()])
             ax2.set_ylim([Exact_ori.min(), Exact_ori.max()])
 
@@ -224,13 +243,13 @@ with tqdm(range(100000)) as bar:
                 item.set_fontsize(15)
 
             ax2 = fig2.add_subplot(gs1[0, 1])
-            ax2.plot(x, Exact_ori[50, :], 'b-', linewidth=2, label='Exact')
-            ax2.plot(x, u[50, :], 'r--', linewidth=2, label='Prediction')
+            ax2.plot(x, Exact_ori[t2, :], 'b-', linewidth=2, label='Exact')
+            ax2.plot(x, u[t2, :], 'r--', linewidth=2, label='Prediction')
             ax2.set_xlabel('$x$')
             ax2.set_ylabel('$u(t,x)$')
             ax2.set_xlim([x.min(), x.max()])
             ax2.set_ylim([Exact_ori.min(), Exact_ori.max()])
-            ax2.set_title('$t = 0.50$', fontsize=15)
+            ax2.set_title('$t = 0.t2$', fontsize=15)
             ax2.legend(
                 loc='upper center',
                 bbox_to_anchor=(0.5, -0.15),
@@ -244,13 +263,13 @@ with tqdm(range(100000)) as bar:
                 item.set_fontsize(15)
 
             ax2 = fig2.add_subplot(gs1[0, 2])
-            ax2.plot(x, Exact_ori[75, :], 'b-', linewidth=2, label='Exact')
-            ax2.plot(x, u[75, :], 'r--', linewidth=2, label='Prediction')
+            ax2.plot(x, Exact_ori[t3, :], 'b-', linewidth=2, label='Exact')
+            ax2.plot(x, u[t3, :], 'r--', linewidth=2, label='Prediction')
             ax2.set_xlabel('$x$')
             ax2.set_ylabel('$u(t,x)$')
             ax2.set_xlim([x.min(), x.max()])
             ax2.set_ylim([Exact_ori.min(), Exact_ori.max()])
-            ax2.set_title('$t = 0.75$', fontsize=15)
+            ax2.set_title('$t = 0.t3$', fontsize=15)
 
             for item in ([ax2.title, ax2.xaxis.label, ax2.yaxis.label] +
                          ax2.get_xticklabels() + ax2.get_yticklabels()):
@@ -280,9 +299,9 @@ with tqdm(range(100000)) as bar:
             )
 
             line = np.linspace(x.min(), x.max(), 2)[:, None]
-            ax3.plot(t[25] * np.ones((2, 1)), line, 'w-', linewidth=1)
-            ax3.plot(t[50] * np.ones((2, 1)), line, 'w-', linewidth=1)
-            ax3.plot(t[75] * np.ones((2, 1)), line, 'w-', linewidth=1)
+            ax3.plot(t[t1] * np.ones((2, 1)), line, 'w-', linewidth=1)
+            ax3.plot(t[t2] * np.ones((2, 1)), line, 'w-', linewidth=1)
+            ax3.plot(t[t3] * np.ones((2, 1)), line, 'w-', linewidth=1)
 
             ax3.set_xlabel('$t$', size=20)
             ax3.set_ylabel('$x$', size=20)
@@ -320,9 +339,9 @@ with tqdm(range(100000)) as bar:
             )
 
             line = np.linspace(x.min(), x.max(), 2)[:, None]
-            ax4.plot(t[25] * np.ones((2, 1)), line, 'w-', linewidth=1)
-            ax4.plot(t[50] * np.ones((2, 1)), line, 'w-', linewidth=1)
-            ax4.plot(t[75] * np.ones((2, 1)), line, 'w-', linewidth=1)
+            ax4.plot(t[t1] * np.ones((2, 1)), line, 'w-', linewidth=1)
+            ax4.plot(t[t2] * np.ones((2, 1)), line, 'w-', linewidth=1)
+            ax4.plot(t[t3] * np.ones((2, 1)), line, 'w-', linewidth=1)
 
             ax4.set_xlabel('$t$', size=20)
             ax4.set_ylabel('$x$', size=20)
